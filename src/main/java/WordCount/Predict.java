@@ -31,8 +31,8 @@ public class Predict {
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException
         {
             StringTokenizer itr = new StringTokenizer(value.toString());  // 将TextInputFormat生成的键值对转换成字符串类型
-            InputSplit inputSplit = context.getInputSplit();
-            String fileName = ((FileSplit) inputSplit).getPath().getParent().getName();
+            //获取文件的绝对路径
+            String filepath = ((FileSplit)context.getInputSplit()).getPath().toString();
             while (itr.hasMoreTokens())
             {
                 String s = itr.nextToken();
