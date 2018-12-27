@@ -1,14 +1,11 @@
 package Classfication;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,10 +21,11 @@ public class TextPreProb {
      * @return
      * @throws IOException
      */
-    public static Map<Text,DoubleWritable> CalPreProb1(FileSystem fs, Path folderPath) throws IOException {
+    public static Map<String,Double> CalPreProb1(FileSystem fs, Path folderPath) throws IOException {
         int sum=0;
-        Map<Text,DoubleWritable> map = new HashMap<Text, DoubleWritable>();
+        Map<String,Double> map = new HashMap<String, Double>();
         List<Path> paths = new ArrayList<Path>();
+        Path path1 = new Path("./output/textprob/result.txt");
         if (fs.exists(folderPath)) {
             Text classname ;
             FileStatus[] fileStatus = fs.listStatus(folderPath);
@@ -40,19 +38,25 @@ public class TextPreProb {
                         FileStatus[] fileStatus1 = fs1.listStatus(fileStatu.getPath());
                         sum += fileStatus1.length;
                         classname = new Text(fileStatu.getPath().getName());
-                        map.put(classname, new DoubleWritable(fileStatus1.length));
+                        map.put(classname.toString(), new Double(fileStatus1.length));
                     }
 
             }
-            for (Map.Entry<Text,DoubleWritable> entry:map.entrySet()) {
-                Text key = entry.getKey();
-                DoubleWritable val = entry.getValue();
-                double v = val.get()/(double)sum;
+            for (Map.Entry<String,Double> entry:map.entrySet()) {
+                String key = entry.getKey();
+                Double val = entry.getValue();
+                double v = val/(double)sum;
            //     System.out.println(v);
-                DoubleWritable prob = new DoubleWritable(val.get()/(double)sum);
+                Double prob = val/(double)sum;
                 map.put(key,prob);
             }
         }
+        FSDataOutputStream outputStream=fs.create(path1);
+        for (Map.Entry<String,Double> entry:map.entrySet()){
+            outputStream.write((entry.getKey()+"\t"+String.valueOf(entry.getValue())+"\n").getBytes());
+            outputStream.flush();
+        }
+        outputStream.close();
         return map;
     }
 

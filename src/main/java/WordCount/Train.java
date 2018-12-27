@@ -1,18 +1,12 @@
 package WordCount;
 //#WorkCount.java
-
-import java.io.InputStream;
-import java.net.URI;
 import java.util.Map;
-
 import Classfication.TextPreProb;
 import Classfication.WordCount;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -26,8 +20,6 @@ import static utils.ClearOutputResult.clear;
 //
 // ****/
 public class Train {
-
-
     /**
      * args[0] input dir
      * args[1] output dir
@@ -39,9 +31,9 @@ public class Train {
         //自动清理运行结果
         clear(conf);
         //计算每个类的先验概率
-        Map<Text,DoubleWritable> textprob = TextPreProb.CalPreProb1(fs,new Path("./input"));
+        Map<String,Double> textprob = TextPreProb.CalPreProb1(fs,new Path("./input"));
         System.out.println("文本的先验概率：");
-        for (Map.Entry<Text,DoubleWritable> entry:textprob.entrySet()) {
+        for (Map.Entry<String,Double> entry:textprob.entrySet()) {
             System.out.println("Class:"+entry.getKey()+",Prob:"+entry.getValue().toString());
         }
 
