@@ -25,7 +25,7 @@ public class TextPreProb {
         int sum=0;
         Map<String,Double> map = new HashMap<String, Double>();
         List<Path> paths = new ArrayList<Path>();
-        Path path1 = new Path("./output/textprob/result.txt");
+        Path path1 = new Path("./output1/textprob/result.txt");
         if (fs.exists(folderPath)) {
             Text classname ;
             FileStatus[] fileStatus = fs.listStatus(folderPath);

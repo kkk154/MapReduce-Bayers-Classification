@@ -59,6 +59,11 @@ public class Train {
             FileOutputFormat.setOutputPath(job, out);  // 设置输出路径
             job.waitForCompletion(true);
             //计算每个类中每个词的先验概率
+        }
+        for(int i = 0; i<fileStatus.length;i++)
+        {
+            Text classname = new Text(fileStatus[i].getPath().getName());
+            Path out = new Path(args[1]+Path.SEPARATOR+classname.toString());
             WordProb(conf,out.toString()+Path.SEPARATOR+"part-r-00000");
         }
 

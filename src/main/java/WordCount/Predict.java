@@ -24,7 +24,10 @@ public class Predict {
     private static List<Map<String,Double>> bayersnet =new ArrayList<>();
     //
     private static Map<String, Double> textprob = new HashMap<>();
-
+    //单词总数
+    private static int wordsum = 0;
+    //所有类别，单词个数
+    private static Map<String,Integer> classwordsum = new HashMap<>();
     //
     // ****   线程池方法
     //
@@ -52,7 +55,6 @@ public class Predict {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            System.out.println("正在处理文档:"+key);
             try (
                     FSDataInputStream in = fs.open(new Path(key));
                     BufferedReader d = new BufferedReader(new InputStreamReader(in)))
@@ -64,9 +66,7 @@ public class Predict {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-           // System.out.println("words:");
-           // System.out.println(words);
-            double prob =Math.E;
+            double prob =0;
             int flag = 0;
             String classname=null;
             int num=1;
@@ -74,47 +74,39 @@ public class Predict {
                 if(Stopwords.isStopword(s)||isFloat(s))
                     continue;
                 for (Map<String,Double> map:bayersnet) {
-                    if(map.size()!=0)
-                        num = map.size();
                     for (Map.Entry<String,Double> entry1:map.entrySet()) {
                         String[] s1 = entry1.getKey().split(":");
-              /*          System.out.println(" String[] s1 = entry1.getKey().split(\":\");");
-                        System.out.println(s1[0]+" "+s1[1]);*/
                         classname = s1[0];
                         String word = s1[1];
-                  //      System.out.println("测试文档单词："+s+",训练文档单词："+word+",相等?"+s.equals(word));
+                        num = classwordsum.get(classname);
                         if (s.equals(word)) {
-
-                           // System.out.println("找到相等的词");
                             flag = 1;
-                            prob = Math.abs(Math.log(prob))*Math.abs(Math.log(Double.valueOf(entry1.getValue())));
-                        //    System.out.println("prob:"+prob);
+                            prob = prob+Math.log(Double.valueOf(entry1.getValue()));
                             map2.put(classname,prob);
                             break;
                         }
                     }
                     if(flag == 0)
                     {
-                       // System.out.println("没找到相等的词");
-                        prob = Math.abs(Math.log(prob))*Math.abs(Math.log((1/(double)num)));
-                      //  System.out.println("prob:"+prob);
+                        prob = prob+Math.log((1/(double)(num+wordsum)));
                         map2.put(classname,prob);
                     }
                     flag = 0;
                 }
-               // System.out.println(map2);
             }
             for(Map.Entry<String,Double> entry3:map2.entrySet())
             {
                 for (Map.Entry<String,Double> entry4:textprob.entrySet()) {
                     if(entry3.getKey().equals(entry4.getKey()))
                     {
-                        Double val = entry3.getValue()*entry4.getValue();
+                        Double val = entry3.getValue()+Math.log(entry4.getValue());
                         map2.put(entry3.getKey(),val);
                     }
                 }
             }
-            double maxprob = 0;
+            System.out.println(map2);
+            int count = 0;
+            double maxprob =-100000000;
             String probclass = "";
             for (Map.Entry<String,Double> entry5:map2.entrySet()) {
                 if (maxprob<entry5.getValue())
@@ -122,12 +114,8 @@ public class Predict {
                     maxprob = entry5.getValue();
                     probclass = entry5.getKey();
                 }
-
             }
             dict.put(key,values[0]+":"+probclass);
-            //System.out.println(map2);
-            //System.out.println(dict);
-
         }
     }
 
@@ -137,9 +125,10 @@ public class Predict {
         Configuration conf = new Configuration();  // job的配置
         FileSystem fs = FileSystem.get(conf);
         Path bayers = new Path("./output");
-        Path textprobdir = new Path("./output/textprob/result.txt");
+        Path textprobdir = new Path("./output1/textprob/result.txt");
         Path predir = new Path("./predict");
         FileStatus[] fileStatuses = fs.listStatus(predir);
+        Map<String,Integer> wordsumap = new HashMap<>();
         for (int i = 0; i < fileStatuses.length; i++) {
             Text classname ;
             //类别名称
@@ -171,15 +160,27 @@ public class Predict {
                 while ((line = d.readLine()) != null) {
                     String[] strings = line.split("\t");
                     map1.put(classname.toString()+":"+strings[0],Double.valueOf(strings[1]));
+                    wordsumap.put(strings[0],1);
                 }
                 bayersnet.add(map1);
-               // System.out.println("*****map1:"+map1);
-               // System.out.println("****bayersnet:"+bayersnet);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try (
+                    FSDataInputStream in = fs.open(new Path("./output/"+classname.toString()+"/prob/result1.txt")
+                    );
+                    BufferedReader d = new BufferedReader(new InputStreamReader(in));) {
+                String line;
+                while ((line = d.readLine()) != null) {
+                    String[] strings = line.split("\t");
+                    classwordsum.put(strings[0],Integer.valueOf(strings[1]));
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-
+        System.out.println("classwordsum:"+classwordsum);
+        wordsum = wordsumap.size();
 
         FSDataInputStream in = fs.open(textprobdir);
         BufferedReader d = new BufferedReader(new InputStreamReader(in));
@@ -188,9 +189,6 @@ public class Predict {
             String[] strings = line.split("\t");
             textprob.put(strings[0],Double.valueOf(strings[1]));
         }
-            // System.out.println("*****map1:"+map1);
-            // System.out.println("****bayersnet:"+bayersnet);
-
         //打印将要预测的文件列表
         System.out.println(dict);
         //打印训练好的数据
@@ -204,11 +202,8 @@ public class Predict {
             // 可以执行Runnable对象或者Callable对象代表的线程
         for (CopyOnWriteHashMap.Entry entry:dict.entrySet()) {
             pool.submit(new MyRunnable(entry));
-           // new Thread(new MyRunnable(entry)).start();
         }
-
-        //pool.submit(new MyRunnable());
-            //结束线程池
+        //结束线程池
         pool.shutdown();
         while(true){
             if(pool.isTerminated()){
@@ -223,9 +218,13 @@ public class Predict {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println(dict);
         for (Map.Entry<String,String> entry6:dict.entrySet()){
             String[] strings = entry6.getValue().split(":");
+            System.out.println(entry6.getValue());
+            System.out.println(strings.length);
             try {
+                System.out.println("Path:"+entry6.getKey()+",真实类别:"+strings[0]+",预测类别:"+strings[1]);
                 outputStream.write((entry6.getKey()+"\t"+strings[0]+"\t"+strings[1]+"\n").getBytes());
             } catch (IOException e) {
                 e.printStackTrace();
